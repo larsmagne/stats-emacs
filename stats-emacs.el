@@ -59,6 +59,7 @@
 			  (setq stats-emacs-cache (stats-emacs-get))))))
 
 (defun stats-emacs-generate (data)
+  "Generate the .js stats file based on DATA in the slowest way imaginable."
   (with-temp-buffer
     (insert "emacsData = [[\"Date\", \"Open\"],\n")
     (let ((date (stats-emacs-date (cdr (assq 'date (car data)))))
