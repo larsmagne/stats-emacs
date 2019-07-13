@@ -58,10 +58,15 @@
 			 (stats-emacs-sort
 			  (setq stats-emacs-cache (stats-emacs-get))))))
 
+(defun stats-emacs-regenerate ()
+  (interactive)
+  (stats-emacs-generate (stats-emacs-filter
+			 (stats-emacs-sort stats-emacs-cache))))
+
 (defun stats-emacs-generate (data)
   "Generate the .js stats file based on DATA in the slowest way imaginable."
   (with-temp-buffer
-    (insert "emacsData = [[\"Date\", \"Open\"],\n")
+    (insert "emacsData = [[\"Date\", \"Open\", \"Opened\", \"Closed\"],\n")
     (let ((date (stats-emacs-date (cdr (assq 'date (car data)))))
 	  (all-data data)
 	  (opened 0))
@@ -71,7 +76,7 @@
 			date))
 	  (incf opened)
 	  (pop data))
-	(stats-emacs-line date all-data opened)
+	(stats-emacs-line-all date all-data opened)
 	(message "%s" date)
 	(setq date nil)
 	(when data
@@ -81,7 +86,7 @@
     (search-backward ",")
     (delete-char 1)
     (insert "];")
-    (write-region (point-min) (point-max) "~/src/stats-emacs/stats-emacs.js")))
+    (write-region (point-min) (point-max) "~/src/stats-emacs/stats-emacs-all.js")))
 
 (defun stats-emacs-line-all (date all-data opened)
   (let ((closed (stats-emacs-closed all-data date)))
