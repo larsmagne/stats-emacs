@@ -125,6 +125,14 @@
       (setq time (- time month))))
   (string-to-number (format-time-string "%Y%m%d" time)))
 
+(defun stats-emacs-tally (data date)
+  (- (length data)
+     (loop for elem in data
+	   when (and (<= (stats-emacs-date (cdr (assq 'last_modified elem)) t)
+			 data)
+		     (equal (cdr (assq 'pending elem)) "done"))
+	   sum 1)))
+
 (provide 'stats-emacs)
 
 ;;; stats-emacs.el ends here
