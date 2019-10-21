@@ -66,24 +66,25 @@
 (defun stats-emacs-computed-closed (data)
   (setq data (stats-emacs-sort (copy-sequence data) t))
   (let ((date (stats-emacs-date (cdr (assq 'last_modified (car data)))))
-	(severeties (make-hash-table :test #'equal))
+	(severities (make-hash-table :test #'equal))
 	(tags (make-hash-table :test #'equal))
 	(total (make-hash-table))
 	(closed 0))
     (while data
       (while (and data
-		  (<= (stats-emacs-date (cdr (assq 'last_modified
-						   (car data))))
+		  (<= (stats-emacs-date
+		       (cdr (assq 'last_modified (car data)))
+		       (equal (cdr (assq 'location (car data))) "archive"))
 		      date))
 	(when (equal (cdr (assq 'pending (car data))) "done")
 	  (incf closed)
-	  (incf (gethash (cdr (assq 'severity (car data))) severeties 0))
+	  (incf (gethash (cdr (assq 'severity (car data))) severities 0))
 	  (dolist (tag (cdr (assq 'tags (car data))))
 	    (incf (gethash tag tags 0))))
 	(pop data))
       (setf (gethash date total)
 	    (list :closed closed
-		  :severeties (stats-emacs-hash-to-alist severeties)
+		  :severities (stats-emacs-hash-to-alist severities)
 		  :tags (stats-emacs-hash-to-alist tags)))
       (setq date nil)
       (when data
@@ -91,7 +92,7 @@
     (when date
       (setf (gethash date total)
 	    (list :closed closed
-		  :severeties (stats-emacs-hash-to-alist severeties)
+		  :severities (stats-emacs-hash-to-alist severities)
 		  :tags (stats-emacs-hash-to-alist tags))))
     total))
 
@@ -113,7 +114,7 @@
 			(lambda (e1 e2)
 			  (< (car e1) (car e2)))))
 	  (all-data data)
-	  (severeties (make-hash-table :test #'equal))
+	  (severities (make-hash-table :test #'equal))
 	  (tags (make-hash-table :test #'equal))
 	  (opened 0))
       (while data
@@ -121,24 +122,24 @@
 		    (<= (stats-emacs-date (cdr (assq 'date (car data))))
 			date))
 	  (incf opened)
-	  (incf (gethash (cdr (assq 'severity (car data))) severeties 0))
+	  (incf (gethash (cdr (assq 'severity (car data))) severities 0))
 	  (dolist (tag (cdr (assq 'tags (car data))))
 	    (incf (gethash tag tags 0)))
 	  (pop data))
-	(stats-emacs-line-all date opened severeties tags closed-data)
+	(stats-emacs-line-all date opened severities tags closed-data)
 	(message "%s" date)
 	(setq date nil)
 	(when data
 	  (setq date (stats-emacs-date (cdr (assq 'date (car data)))))))
       (when date
-	(stats-emacs-line-all date opened severeties tags closed-data)))
+	(stats-emacs-line-all date opened severities tags closed-data)))
     (search-backward ",")
     (delete-char 1)
     (insert "];")
     (write-region (point-min) (point-max)
 		  "~/src/stats-emacs/stats-emacs-all.js")))
 
-(defun stats-emacs-line-all (date opened severeties tags closed-data)
+(defun stats-emacs-line-all (date opened severities tags closed-data)
   (let ((cd (stats-emacs-closed date closed-data)))
     (insert (format "[new Date(%d, %d, %d), %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d],\n"
 		    (/ date 10000)
@@ -147,14 +148,30 @@
 		    (- opened (getf cd :closed))
 		    opened
 		    (getf cd :closed)
-		    0 ; Critical
-		    0 ; Important
-		    0 ; Normal
-		    0 ; Minor
-		    0 ; Wishlist
-		    0 ; Patch
-		    0 ; Moreinfo
-		    0 ; Wontfix
+		    (- (gethash "critical" severities 0)
+		       (or (cdr (assoc "critical" (getf cd :severities)))
+			   0))
+		    (- (gethash "important" severities 0)
+		       (or (cdr (assoc "important" (getf cd :severities)))
+			   0))
+		    (- (gethash "normal" severities 0)
+		       (or (cdr (assoc "normal" (getf cd :severities)))
+			   0))
+		    (- (gethash "minor" severities 0)
+		       (or (cdr (assoc "minor" (getf cd :severities)))
+			   0))
+		    (- (gethash "wishlist" severities 0)
+		       (or (cdr (assoc "wishlist" (getf cd :severities)))
+			   0))
+		    (- (gethash "patch" tags 0)
+		       (or (cdr (assoc "patch" (getf cd :tags)))
+			   0))
+		    (- (gethash "moreinfo" tags 0)
+		       (or (cdr (assoc "moreinfo" (getf cd :tags)))
+			   0))
+		    (- (gethash "wontfix" tags 0)
+		       (or (cdr (assoc "wontfix" (getf cd :tags)))
+			   0))
 		    ))))
 
 (defun stats-emacs-closed (date closed-data)
