@@ -203,15 +203,19 @@
 	   sum 1)))
 
 (defun stats-emacs-same-month-p (date1 date2)
-  (or (> (decoded-time-year date1) (decoded-time-year date2))
-      (and (= (decoded-time-year date1) (decoded-time-year date2))
-	   (>= (decoded-time-month date1) (decoded-time-month date2)))))
+  (or (>= (decoded-time-year date1) (decoded-time-year date2))
+      (or (> (decoded-time-year date1) (decoded-time-year date2))
+	  (and (= (decoded-time-year date1) (decoded-time-year date2))
+	       (>= (decoded-time-month date1) (decoded-time-month date2))))))
 
-(defun stats-emacs-percentage-time (data)
+(defun stats-emacs-percentage-time (data &optional no-wishlist)
   (setq data (stats-emacs-filter (stats-emacs-sort data)))
   (with-temp-buffer
-    (insert "percentData = [[\"Date\", \"Year\", \"Month\", \"Week\"],\n")
-
+    (insert (format
+	     "percentData%s = [[\"Date\", \"Year\", \"Month\", \"Week\"],\n"
+	     (if no-wishlist
+		 "NW"
+	       "")))
     (let ((date (make-decoded-time :day 1 :month 1 :year 2008))
 	  opened closed-year closed-month closed-week)
       (while data
@@ -222,7 +226,10 @@
 	(while (and data
 		    (stats-emacs-same-month-p
 		     date (stats-emacs-date (car data) nil 'date)))
-	  (push (pop data) opened))
+	  (when (or (not no-wishlist)
+		    (not (equal (cdr (assq 'severity (car data))) "wishlist")))
+	    (push (car data) opened))
+	  (pop data))
 	(dolist (elem opened)
 	  (when (equal (cdr (assq 'pending elem)) "done")
 	    (let ((diff (- (stats-emacs-date elem t 'int)
@@ -247,12 +254,14 @@
 			    0
 			  (* 100 (/ (float closed-week) (length opened))))))
 	(setq date (decoded-time-add date
-				     (make-decoded-time :month 1))))
+				     (make-decoded-time :year 1))))
       (search-backward ",")
       (delete-char 1)
       (insert "];")
       (write-region (point-min) (point-max)
-		    "~/src/stats-emacs/stats-percent.js"))))
+		    (if no-wishlist
+			"~/src/stats-emacs/stats-percent.js"
+		      "~/src/stats-emacs/stats-percent-no-wishlist.js")))))
 
 (provide 'stats-emacs)
 
