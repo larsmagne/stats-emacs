@@ -43,11 +43,8 @@
 
 (defun stats-emacs-sort (data &optional modified)
   (seq-sort (lambda (a1 a2)
-	      (let ((key (if modified
-			     'last_modified
-			   'date)))
-		(< (cdr (assq key a1))
-		   (cdr (assq key a2)))))
+	      (< (stats-emacs-date a1 modified)
+		 (stats-emacs-date a2 modified)))
 	    (copy-list data)))
 
 (defvar stats-emacs-get nil)
@@ -64,18 +61,15 @@
 			 (stats-emacs-sort stats-emacs-cache))))
 
 (defun stats-emacs-computed-closed (data)
-  (setq data (stats-emacs-sort (copy-sequence data) t))
-  (let ((date (stats-emacs-date (cdr (assq 'last_modified (car data)))))
+  (setq data (stats-emacs-sort data t))
+  (let ((date (stats-emacs-date (car data) t))
 	(severities (make-hash-table :test #'equal))
 	(tags (make-hash-table :test #'equal))
 	(total (make-hash-table))
 	(closed 0))
     (while data
       (while (and data
-		  (<= (stats-emacs-date
-		       (cdr (assq 'last_modified (car data)))
-		       (equal (cdr (assq 'location (car data))) "archive"))
-		      date))
+		  (<= (stats-emacs-date (car data) t) date))
 	(when (equal (cdr (assq 'pending (car data))) "done")
 	  (incf closed)
 	  (incf (gethash (cdr (assq 'severity (car data))) severities 0))
@@ -88,7 +82,7 @@
 		  :tags (stats-emacs-hash-to-alist tags)))
       (setq date nil)
       (when data
-	(setq date (stats-emacs-date (cdr (assq 'last_modified (car data)))))))
+	(setq date (stats-emacs-date (car data) t))))
     (when date
       (setf (gethash date total)
 	    (list :closed closed
@@ -107,7 +101,7 @@
   "Generate the .js stats file based on DATA in the slowest way imaginable."
   (with-temp-buffer
     (insert "emacsData = [[\"Date\", \"Open\", \"Opened\", \"Closed\", \"Critical\", \"Important\", \"Normal\", \"Minor\", \"Wishlist\", \"Patch\", \"Moreinfo\", \"Wontfix\"],\n")
-    (let ((date (stats-emacs-date (cdr (assq 'date (car data)))))
+    (let ((date (stats-emacs-date (car data)))
 	  (closed-data (sort
 			(stats-emacs-hash-to-alist
 			 (stats-emacs-computed-closed data))
@@ -119,8 +113,7 @@
 	  (opened 0))
       (while data
 	(while (and data
-		    (<= (stats-emacs-date (cdr (assq 'date (car data))))
-			date))
+		    (<= (stats-emacs-date (car data)) date))
 	  (incf opened)
 	  (incf (gethash (cdr (assq 'severity (car data))) severities 0))
 	  (dolist (tag (cdr (assq 'tags (car data))))
@@ -130,7 +123,7 @@
 	(message "%s" date)
 	(setq date nil)
 	(when data
-	  (setq date (stats-emacs-date (cdr (assq 'date (car data)))))))
+	  (setq date (stats-emacs-date (car data)))))
       (when date
 	(stats-emacs-line-all date opened severities tags closed-data)))
     (search-backward ",")
@@ -181,15 +174,20 @@
 	   return prev
 	   do (setq prev (cdr elem))))
 
-(defun stats-emacs-date (time &optional close)
-  (let ((month (* 30 60 60 24)))
-    ;; If it's more than a month in the past, deduct the "archive"
-    ;; action.
-    (when (and close
-	       (or (> (- (float-time) time) month)
-		   (zerop (random 2))))
-      (setq time (- time month))))
-  (string-to-number (format-time-string "%Y%m%d" time)))
+(defun stats-emacs-date (elem &optional close)
+  (let ((open-time (cdr (assq 'date elem)))
+	(close-time (cdr (assq 'last_modified elem))))
+    (string-to-number
+     (format-time-string
+      "%Y%m%d" 
+      (cond
+       ((not close) open-time)
+       ((equal (cdr (assq 'location elem)) "archive")
+	(let ((month (* 30 60 60 24)))
+	  ;; If it's more than a month in the past, deduct the "archive"
+	  ;; action.
+	  (- close-time month)))
+       (t close-time))))))
 
 (defun stats-emacs-tally (data date)
   (- (length data)
