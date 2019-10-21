@@ -102,7 +102,7 @@
 (defun stats-emacs-generate (data)
   "Generate the .js stats file based on DATA in the slowest way imaginable."
   (with-temp-buffer
-    (insert "emacsData = [[\"Date\", \"Open\", \"Opened\", \"Closed\", \"Critical\", \"Important\", \"Normal\", \"Minor\", \"Wishlist\", \"Patch\", \"Moreinfo\", \"Wontfix\"],\n")
+    (insert "emacsData = [[\"Date\", \"Open\", \"Opened\", \"Closed\", \"Normal+\", \"Minor\", \"Wishlist\", \"Patch\", \"Moreinfo\", \"Wontfix\"],\n")
     (let ((date (stats-emacs-date (car data)))
 	  (closed-data (sort
 			(stats-emacs-hash-to-alist
@@ -136,22 +136,22 @@
 
 (defun stats-emacs-line-all (date opened severities tags closed-data)
   (let ((cd (stats-emacs-closed date closed-data)))
-    (insert (format "[new Date(%d, %d, %d), %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d],\n"
+    (insert (format "[new Date(%d, %d, %d), %d, %d, %d, %d, %d, %d, %d, %d, %d],\n"
 		    (/ date 10000)
 		    (1- (mod (/ date 100) 100))
 		    (mod date 100)
 		    (- opened (getf cd :closed))
 		    opened
 		    (getf cd :closed)
-		    (- (gethash "critical" severities 0)
-		       (or (cdr (assoc "critical" (getf cd :severities)))
-			   0))
-		    (- (gethash "important" severities 0)
-		       (or (cdr (assoc "important" (getf cd :severities)))
-			   0))
-		    (- (gethash "normal" severities 0)
-		       (or (cdr (assoc "normal" (getf cd :severities)))
-			   0))
+		    (+ (- (gethash "critical" severities 0)
+			  (or (cdr (assoc "critical" (getf cd :severities)))
+			      0))
+		       (- (gethash "important" severities 0)
+			  (or (cdr (assoc "important" (getf cd :severities)))
+			      0))
+		       (- (gethash "normal" severities 0)
+			  (or (cdr (assoc "normal" (getf cd :severities)))
+			      0)))
 		    (- (gethash "minor" severities 0)
 		       (or (cdr (assoc "minor" (getf cd :severities)))
 			   0))
