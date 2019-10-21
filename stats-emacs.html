@@ -1,6 +1,7 @@
 <html>
   <head>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript" src="stats-percent.js"></script>
     <script type="text/javascript" src="stats-emacs-all.js"></script>
     <script type="text/javascript">
       google.charts.load('current', {'packages':['corechart']});
@@ -13,8 +14,36 @@
 	      openArray[i] = [elem[0], elem[1]];
 	  }
 	  
-          var allData = google.visualization.arrayToDataTable(emacsData);
+
+	  var totalArray = [];
+	  for (var i = 0; i < emacsData.length; i++) {
+	      var elem = emacsData[i];
+	      totalArray[i] = [elem[0], elem[1], elem[2], elem[3]];
+	  }
+	  
+	  var severitiesArray = [];
+	  for (var i = 0; i < emacsData.length; i++) {
+	      var elem = emacsData[i];
+	      severitiesArray[i] = [elem[0], elem[4], elem[5], elem[6], elem[7], elem[8]];
+	  }
+	  
+	  var tagsArray = [];
+	  for (var i = 0; i < emacsData.length; i++) {
+	      var elem = emacsData[i];
+	      tagsArray[i] = [elem[0], elem[9], elem[10]];
+	  }
+	  
+	  var percentArray = [];
+	  for (var i = 0; i < percentData.length; i++) {
+	      var elem = percentData[i];
+	      percentArray[i] = [elem[0], elem[1], elem[2], elem[3]];
+	  }
+	  
+          var totalData = google.visualization.arrayToDataTable(totalArray);
           var openData = google.visualization.arrayToDataTable(openArray);
+          var severitiesData = google.visualization.arrayToDataTable(severitiesArray);
+          var tagsData = google.visualization.arrayToDataTable(tagsArray);
+          var percentD = google.visualization.arrayToDataTable(percentArray);
 
           var openOptions = {
               title: 'Open Emacs Bugs',
@@ -29,7 +58,7 @@
 	      
           };
 
-          var allOptions = {
+          var totalOptions = {
               title: 'Total Emacs Bugs',
               curveType: 'function',
 	      legend: { position: 'bottom' },
@@ -38,20 +67,89 @@
 		  axis: 'horizontal',
 		  keepInBounds: true,
 		  maxZoomIn: 4.0
+	      },
+	      vAxis: {
+		  viewWindow: {
+		      min: 0
+		  }
 	      }
 	      
+          };
+	  
+          var severitiesOptions = {
+              title: 'Severities',
+              curveType: 'function',
+	      legend: { position: 'bottom' },
+	      explorer: { 
+		  actions: ['dragToZoom', 'rightClickToReset'],
+		  axis: 'horizontal',
+		  keepInBounds: true,
+		  maxZoomIn: 4.0
+	      },
+	      vAxis: {
+		  viewWindow: {
+		      min: 0
+		  }
+	      }
+	      
+          };
+	  
+          var tagsOptions = {
+              title: 'Tags',
+              curveType: 'function',
+	      legend: { position: 'bottom' },
+	      explorer: { 
+		  actions: ['dragToZoom', 'rightClickToReset'],
+		  axis: 'horizontal',
+		  keepInBounds: true,
+		  maxZoomIn: 4.0
+	      },
+	      vAxis: {
+		  viewWindow: {
+		      min: 0
+		  }
+	      }
+          };
+	  
+          var percentOptions = {
+              title: 'Percentage Closed Within Period',
+              curveType: 'function',
+	      legend: { position: 'bottom' },
+	      explorer: { 
+		  actions: ['dragToZoom', 'rightClickToReset'],
+		  axis: 'horizontal',
+		  keepInBounds: true,
+		  maxZoomIn: 4.0
+	      },
+	      vAxis: {
+		  viewWindow: {
+		      min: 0
+		  }
+	      }
           };
 	  
           var openChart = new google.visualization.LineChart(document.getElementById('open_chart'));
           openChart.draw(openData, openOptions);
 
-          var allChart = new google.visualization.LineChart(document.getElementById('all_chart'));
-          allChart.draw(allData, allOptions);
+          var totalChart = new google.visualization.LineChart(document.getElementById('total_chart'));
+          totalChart.draw(totalData, totalOptions);
+
+          var severitiesChart = new google.visualization.LineChart(document.getElementById('severities_chart'));
+          severitiesChart.draw(severitiesData, severitiesOptions);
+
+          var tagsChart = new google.visualization.LineChart(document.getElementById('tags_chart'));
+          tagsChart.draw(tagsData, tagsOptions);
+
+          var percentChart = new google.visualization.LineChart(document.getElementById('percent_chart'));
+          percentChart.draw(percentD, percentOptions);
       }
     </script>
   </head>
   <body>
     <div id="open_chart" style="width: 900px; height: 500px"></div>
-    <div id="all_chart" style="width: 900px; height: 500px"></div>
+    <div id="total_chart" style="width: 900px; height: 500px"></div>
+    <div id="severities_chart" style="width: 900px; height: 500px"></div>
+    <div id="tags_chart" style="width: 900px; height: 500px"></div>
+    <div id="percent_chart" style="width: 900px; height: 500px"></div>
   </body>
 </html>

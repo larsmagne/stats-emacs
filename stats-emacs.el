@@ -174,20 +174,25 @@
 	   return prev
 	   do (setq prev (cdr elem))))
 
-(defun stats-emacs-date (elem &optional close)
-  (let ((open-time (cdr (assq 'date elem)))
-	(close-time (cdr (assq 'last_modified elem))))
-    (string-to-number
-     (format-time-string
-      "%Y%m%d" 
-      (cond
-       ((not close) open-time)
-       ((equal (cdr (assq 'location elem)) "archive")
-	(let ((month (* 30 60 60 24)))
-	  ;; If it's more than a month in the past, deduct the "archive"
-	  ;; action.
-	  (- close-time month)))
-       (t close-time))))))
+(defun stats-emacs-date (elem &optional close format)
+  (let* ((open-time (cdr (assq 'date elem)))
+	 (close-time (cdr (assq 'last_modified elem)))
+	 (time
+	  (cond
+	   ((not close) open-time)
+	   ((equal (cdr (assq 'location elem)) "archive")
+	    (let ((month (* 30 60 60 24)))
+	      ;; If it's more than a month in the past, deduct the "archive"
+	      ;; action.
+	      (- close-time month)))
+	   (t close-time))))
+    (cond
+     ((eq format 'int)
+      time)
+     ((eq format 'date)
+      (decode-time time))
+     (t
+      (string-to-number (format-time-string "%Y%m%d" time))))))
 
 (defun stats-emacs-tally (data date)
   (- (length data)
@@ -196,6 +201,58 @@
 			 data)
 		     (equal (cdr (assq 'pending elem)) "done"))
 	   sum 1)))
+
+(defun stats-emacs-same-month-p (date1 date2)
+  (or (> (decoded-time-year date1) (decoded-time-year date2))
+      (and (= (decoded-time-year date1) (decoded-time-year date2))
+	   (>= (decoded-time-month date1) (decoded-time-month date2)))))
+
+(defun stats-emacs-percentage-time (data)
+  (setq data (stats-emacs-filter (stats-emacs-sort data)))
+  (with-temp-buffer
+    (insert "percentData = [[\"Date\", \"Year\", \"Month\", \"Week\"],\n")
+
+    (let ((date (make-decoded-time :day 1 :month 1 :year 2008))
+	  opened closed-year closed-month closed-week)
+      (while data
+	(setq opened nil
+	      closed-year 0
+	      closed-month 0
+	      closed-week 0)
+	(while (and data
+		    (stats-emacs-same-month-p
+		     date (stats-emacs-date (car data) nil 'date)))
+	  (push (pop data) opened))
+	(dolist (elem opened)
+	  (when (equal (cdr (assq 'pending elem)) "done")
+	    (let ((diff (- (stats-emacs-date elem t 'int)
+			   (stats-emacs-date elem nil 'int))))
+	      (when (< diff (* 7 24 60 60))
+		(incf closed-week))
+	      (when (< diff (* 30 24 60 60))
+		(incf closed-month))
+	      (when (< diff (* 365 24 60 60))
+		(incf closed-year)))))
+	(insert (format "[new Date(%d, %d, %d), %d, %d, %d],\n"
+			(decoded-time-year date)
+			(1+ (decoded-time-month date))
+			(decoded-time-day date)
+			(if (zerop (length opened))
+			    0
+			  (* 100 (/ (float closed-year) (length opened))))
+			(if (zerop (length opened))
+			    0
+			  (* 100 (/ (float closed-month) (length opened))))
+			(if (zerop (length opened))
+			    0
+			  (* 100 (/ (float closed-week) (length opened))))))
+	(setq date (decoded-time-add date
+				     (make-decoded-time :month 1))))
+      (search-backward ",")
+      (delete-char 1)
+      (insert "];")
+      (write-region (point-min) (point-max)
+		    "~/src/stats-emacs/stats-percent.js"))))
 
 (provide 'stats-emacs)
 
