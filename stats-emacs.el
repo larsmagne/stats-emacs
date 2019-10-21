@@ -53,7 +53,9 @@
   (interactive)
   (stats-emacs-generate (stats-emacs-filter
 			 (stats-emacs-sort
-			  (setq stats-emacs-cache (stats-emacs-get))))))
+			  (setq stats-emacs-cache (stats-emacs-get)))))
+  (stats-emacs-percentage-time stats-emacs-cache nil)
+  (stats-emacs-percentage-time stats-emacs-cache t))
 
 (defun stats-emacs-regenerate ()
   (interactive)
