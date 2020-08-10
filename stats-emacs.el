@@ -25,6 +25,12 @@
 
 ;;; Code:
 
+(push "~/src/emacs/elpa/packages/debbugs/" load-path)
+
+(require 'debbugs-gnu)
+(require 'cl)
+(require 'iso8601)
+(require 'parse-time)
 
 (defun stats-emacs-get ()
   (apply 'debbugs-get-status (debbugs-get-bugs :archive "both")))
@@ -51,9 +57,11 @@
 
 (defun stats-emacs ()
   (interactive)
+  (setq stats-emacs-cache (stats-emacs-get))
+  (when (< (length stats-emacs-cache) 35900)
+    (error "Didn't get all bug reports"))
   (stats-emacs-generate (stats-emacs-filter
-			 (stats-emacs-sort
-			  (setq stats-emacs-cache (stats-emacs-get)))))
+			 (stats-emacs-sort stats-emacs-cache)))
   (stats-emacs-percentage-time stats-emacs-cache nil)
   (stats-emacs-percentage-time stats-emacs-cache t))
 
@@ -264,6 +272,21 @@
 		    (if no-wishlist
 			"~/src/stats-emacs/stats-percent.js"
 		      "~/src/stats-emacs/stats-percent-no-wishlist.js")))))
+
+(defun stats-emacs-find-at-date (date)
+  (cl-loop with time = (float-time
+			(encode-time (decoded-time-set-defaults
+				      (iso8601-parse-date date))))
+	   for elem in (stats-emacs-filter stats-emacs-cache)
+	   for open-time = (cdr (assq 'date elem))
+	   for close-time = (cdr (assq 'last_modified elem))
+	   for status = (cdr (assq 'pending elem))
+	   when (and (member "moreinfo" (cdr (assq 'tags elem)))
+		     (or (and (not (equal status "done"))
+			      (< open-time time))
+			 (and (equal status "done")
+			      (< open-time time close-time))))
+	   collect elem))
 
 (provide 'stats-emacs)
 
