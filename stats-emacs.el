@@ -98,6 +98,11 @@
 	    (list :closed closed
 		  :severities (stats-emacs-hash-to-alist severities)
 		  :tags (stats-emacs-hash-to-alist tags))))
+    ;; Add the current day, too.
+    (setf (gethash (string-to-number (format-time-string "%Y%m%d")) total)
+	  (list :closed closed
+		:severities (stats-emacs-hash-to-alist severities)
+		:tags (stats-emacs-hash-to-alist tags)))
     total))
 
 (defun stats-emacs-hash-to-alist (hash)
@@ -180,7 +185,7 @@
 (defun stats-emacs-closed (date closed-data)
   (cl-loop with prev = (list :closed 0)
 	   for elem in closed-data
-	   when (>= (car elem) date)
+	   when (> (car elem) date)
 	   return prev
 	   do (setq prev (cdr elem))))
 
