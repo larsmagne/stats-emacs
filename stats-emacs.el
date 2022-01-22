@@ -51,9 +51,10 @@
   (seq-sort (lambda (a1 a2)
 	      (< (stats-emacs-date a1 modified)
 		 (stats-emacs-date a2 modified)))
-	    (copy-list data)))
+	    (cl-copy-list data)))
 
 (defvar stats-emacs-get nil)
+(defvar stats-emacs-cache nil)
 
 (defun stats-emacs ()
   (interactive)
@@ -81,10 +82,10 @@
       (while (and data
 		  (<= (stats-emacs-date (car data) t) date))
 	(when (equal (cdr (assq 'pending (car data))) "done")
-	  (incf closed)
-	  (incf (gethash (cdr (assq 'severity (car data))) severities 0))
+	  (cl-incf closed)
+	  (cl-incf (gethash (cdr (assq 'severity (car data))) severities 0))
 	  (dolist (tag (cdr (assq 'tags (car data))))
-	    (incf (gethash tag tags 0))))
+	    (cl-incf (gethash tag tags 0))))
 	(pop data))
       (setf (gethash date total)
 	    (list :closed closed
@@ -129,10 +130,10 @@
       (while data
 	(while (and data
 		    (<= (stats-emacs-date (car data)) date))
-	  (incf opened)
-	  (incf (gethash (cdr (assq 'severity (car data))) severities 0))
+	  (cl-incf opened)
+	  (cl-incf (gethash (cdr (assq 'severity (car data))) severities 0))
 	  (dolist (tag (cdr (assq 'tags (car data))))
-	    (incf (gethash tag tags 0)))
+	    (cl-incf (gethash tag tags 0)))
 	  (pop data))
 	(stats-emacs-line-all date opened severities tags closed-data)
 	(message "%s" date)
@@ -153,32 +154,32 @@
 		    (/ date 10000)
 		    (1- (mod (/ date 100) 100))
 		    (mod date 100)
-		    (- opened (getf cd :closed))
+		    (- opened (cl-getf cd :closed))
 		    opened
-		    (getf cd :closed)
+		    (cl-getf cd :closed)
 		    (+ (- (gethash "critical" severities 0)
-			  (or (cdr (assoc "critical" (getf cd :severities)))
+			  (or (cdr (assoc "critical" (cl-getf cd :severities)))
 			      0))
 		       (- (gethash "important" severities 0)
-			  (or (cdr (assoc "important" (getf cd :severities)))
+			  (or (cdr (assoc "important" (cl-getf cd :severities)))
 			      0))
 		       (- (gethash "normal" severities 0)
-			  (or (cdr (assoc "normal" (getf cd :severities)))
+			  (or (cdr (assoc "normal" (cl-getf cd :severities)))
 			      0)))
 		    (- (gethash "minor" severities 0)
-		       (or (cdr (assoc "minor" (getf cd :severities)))
+		       (or (cdr (assoc "minor" (cl-getf cd :severities)))
 			   0))
 		    (- (gethash "wishlist" severities 0)
-		       (or (cdr (assoc "wishlist" (getf cd :severities)))
+		       (or (cdr (assoc "wishlist" (cl-getf cd :severities)))
 			   0))
 		    (- (gethash "patch" tags 0)
-		       (or (cdr (assoc "patch" (getf cd :tags)))
+		       (or (cdr (assoc "patch" (cl-getf cd :tags)))
 			   0))
 		    (- (gethash "moreinfo" tags 0)
-		       (or (cdr (assoc "moreinfo" (getf cd :tags)))
+		       (or (cdr (assoc "moreinfo" (cl-getf cd :tags)))
 			   0))
 		    (- (gethash "wontfix" tags 0)
-		       (or (cdr (assoc "wontfix" (getf cd :tags)))
+		       (or (cdr (assoc "wontfix" (cl-getf cd :tags)))
 			   0))
 		    ))))
 
@@ -187,7 +188,8 @@
 	   for elem in closed-data
 	   when (> (car elem) date)
 	   return prev
-	   do (setq prev (cdr elem))))
+	   do (setq prev (cdr elem))
+	   finally return prev))
 
 (defun stats-emacs-date (elem &optional close format)
   (let* ((open-time (cdr (assq 'date elem)))
@@ -211,17 +213,17 @@
 
 (defun stats-emacs-tally (data date)
   (- (length data)
-     (loop for elem in data
-	   when (and (<= (stats-emacs-date (cdr (assq 'last_modified elem)) t)
-			 data)
-		     (equal (cdr (assq 'pending elem)) "done"))
-	   sum 1)))
+     (cl-loop for elem in data
+	      when (and (<= (stats-emacs-date
+			     (cdr (assq 'last_modified elem)) t)
+			    data)
+			(equal (cdr (assq 'pending elem)) "done"))
+	      sum 1)))
 
 (defun stats-emacs-same-month-p (date1 date2)
-  (or (>= (decoded-time-year date1) (decoded-time-year date2))
-      (or (> (decoded-time-year date1) (decoded-time-year date2))
-	  (and (= (decoded-time-year date1) (decoded-time-year date2))
-	       (>= (decoded-time-month date1) (decoded-time-month date2))))))
+  (or (> (decoded-time-year date1) (decoded-time-year date2))
+      (and (= (decoded-time-year date1) (decoded-time-year date2))
+	   (>= (decoded-time-month date1) (decoded-time-month date2)))))
 
 (defun stats-emacs-percentage-time (data &optional no-wishlist)
   (setq data (stats-emacs-filter (stats-emacs-sort data)))
@@ -232,6 +234,12 @@
 		 "NW"
 	       "")))
     (let ((date (make-decoded-time :day 1 :month 1 :year 2008))
+	  (last-year (- (time-convert (current-time) 'integer)
+			(* 365 24 60 60)))
+	  (last-month (- (time-convert (current-time) 'integer)
+			 (* 31 24 60 60)))
+	  (last-week (- (time-convert (current-time) 'integer)
+			(* 7 24 60 60)))
 	  opened closed-year closed-month closed-week)
       (while data
 	(setq opened nil
@@ -250,26 +258,39 @@
 	    (let ((diff (- (stats-emacs-date elem t 'int)
 			   (stats-emacs-date elem nil 'int))))
 	      (when (< diff (* 7 24 60 60))
-		(incf closed-week))
+		(cl-incf closed-week))
 	      (when (< diff (* 30 24 60 60))
-		(incf closed-month))
+		(cl-incf closed-month))
 	      (when (< diff (* 365 24 60 60))
-		(incf closed-year)))))
-	(insert (format "[new Date(%d, %d, %d), %d, %d, %d],\n"
+		(cl-incf closed-year)))))
+	(insert (format "[new Date(%d, %d, %d), %s, %s, %s],\n"
 			(decoded-time-year date)
-			(1+ (decoded-time-month date))
+			(decoded-time-month date)
 			(decoded-time-day date)
-			(if (zerop (length opened))
-			    0
-			  (* 100 (/ (float closed-year) (length opened))))
-			(if (zerop (length opened))
-			    0
-			  (* 100 (/ (float closed-month) (length opened))))
-			(if (zerop (length opened))
-			    0
-			  (* 100 (/ (float closed-week) (length opened))))))
+			(cond
+			 ((zerop (length opened)) 0)
+			 ((> (time-convert (encode-time date) 'integer)
+			     last-year)
+			  "null")
+			 (t
+			  (truncate
+			   (* 100 (/ (float closed-year) (length opened))))))
+			(cond
+			 ((zerop (length opened)) 0)
+			 ((> (time-convert (encode-time date) 'integer)
+			     last-month)
+			  "null")
+			 (t
+			  (* 100 (/ (float closed-month) (length opened)))))
+			(cond
+			 ((zerop (length opened)) 0)
+			 ((> (time-convert (encode-time date) 'integer)
+			     last-week)
+			  "null")
+			 (t
+			  (* 100 (/ (float closed-week) (length opened)))))))
 	(setq date (decoded-time-add date
-				     (make-decoded-time :year 1))))
+				     (make-decoded-time :month 3))))
       (search-backward ",")
       (delete-char 1)
       (insert "];")
